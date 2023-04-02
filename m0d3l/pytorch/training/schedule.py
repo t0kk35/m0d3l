@@ -5,10 +5,9 @@ Module for custom schedulers
 """
 import logging
 import torch
-import torch.utils.data as data
 from .optimizer import Optimizer
 from .history import History
-from typing import List
+from typing import List, Dict
 
 
 logger = logging.getLogger(__name__)
@@ -16,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 # noinspection PyProtectedMember,PyUnresolvedReferences
 class LinearLR(torch.optim.lr_scheduler._LRScheduler):
-    # inspection PyProtectedMember,PyUnresolvedReferences
     @staticmethod
     def _val_more_than_1_iter(num_iter: int):
         if num_iter <= 1:
@@ -37,15 +35,20 @@ class LRHistory(History):
     lr_key = 'lr'
     loss_key = 'loss'
 
-    def __init__(self, dl: data.DataLoader, scheduler: LinearLR, diverge: int, smooth: float, max_steps: int):
-        h = {LRHistory.lr_key: [], LRHistory.loss_key: []}
-        History.__init__(self, dl, h)
+    def __init__(self, batch_size: int, sample_number: int, step_number: int,
+                 scheduler: LinearLR, diverge: int, smooth: float, max_steps: int):
+        History.__init__(self, batch_size, sample_number, step_number)
+        self._history = {LRHistory.lr_key: [], LRHistory.loss_key: []}
         self._step_count = 0
         self._scheduler = scheduler
         self._diverge = diverge
         self._smooth = smooth
         self._max_steps = max_steps
         self._best_loss = float('inf')
+
+    @property
+    def history(self) -> Dict:
+        return self._history
 
     def end_step(self, o: torch.Tensor, y: List[torch.Tensor], loss: torch.Tensor):
         if self._step_count < 1:

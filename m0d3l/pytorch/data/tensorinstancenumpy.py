@@ -11,7 +11,7 @@ from eng1n3.pandas import TensorInstanceNumpy
 
 from .base import ModelDataSet
 from ..common.exception import PyTorchTrainException
-from typing import List, Tuple
+from typing import Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -20,19 +20,25 @@ class TensorInstanceNumpyDataSet(ModelDataSet):
     def __init__(self, ti: TensorInstanceNumpy):
         self._ti = ti
         self._dtypes = self.get_dtypes(ti)
+        self._tensors = tuple(
+            torch.as_tensor(array, dtype=dt) for array, dt in zip(ti.numpy_lists, self.get_dtypes(ti))
+        )
         # Yes assign to CPU. We could directly allocate to the GPU, but then we can only use one worker :|
         self.device = torch.device('cpu')
 
     def __len__(self):
         return len(self._ti)
 
-    def __getitem__(self, item: int) -> List[torch.Tensor]:
-        res = [torch.as_tensor(array[item], dtype=dt, device=self.device)
-               for array, dt in zip(self._ti.numpy_lists, self._dtypes)]
-        return res
+    def __getitem__(self, item: int) -> Tuple[torch.Tensor, ...]:
+        return tuple(t[item] for t in self._tensors)
 
+    @property
     def tensor_definitions(self) -> Tuple[TensorDefinition, ...]:
         return self._ti.target_tensor_def
+
+    @property
+    def tensors(self) -> Tuple[torch.Tensor, ...]:
+        return self._tensors
 
     def data_loader(self, device: torch.device, batch_size: int, num_workers: int = 1,
                     shuffle: bool = False, sampler: data.Sampler = None) -> data.DataLoader:
@@ -40,7 +46,7 @@ class TensorInstanceNumpyDataSet(ModelDataSet):
         if num_workers > 1:
             if self.device.type == 'cuda':
                 logger.warning(f'Defaulted to using the cpu for the data-loader of '
-                               f'<{[td.name for td in self.tensor_definitions()]}>.' +
+                               f'<{[td.name for td in self.tensor_definitions]}>.' +
                                f' Multiple workers not supported by "cuda" devices. ')
             self.device = torch.device('cpu')
             dl = data.DataLoader(

@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 import torch
 import torch.nn as nn
 
-from typing import List, Any, Tuple
+from typing import Any, Tuple
 
 from f3atur3s import TensorDefinition
 from eng1n3.pandas import TensorInstanceNumpy
@@ -16,7 +16,6 @@ from eng1n3.pandas import TensorInstanceNumpy
 from ..common.exception import PyTorchModelException
 from ..training.loss import Loss
 from ..training.history import History
-from ..training.optimizer import Optimizer
 from ..layers.heads import TensorDefinitionHead
 
 
@@ -28,28 +27,41 @@ class Model(nn.Module, ABC):
         raise NotImplemented('Abstract method _forward_unimplemented not implemented')
 
     @abstractmethod
-    def get_x(self, ds: List[torch.Tensor]) -> List[torch.Tensor]:
+    def get_x(self, ds: Tuple[torch.Tensor, ...]) -> Tuple[torch.Tensor, ...]:
         """
         Get the values that are considered the x values. I.e. the independent variables, I.e. NOT the label.
 
         Args:
-            ds: A list of tensors as read from a DataLoader object.
+            ds: A Tuple of tensors as read from a DataLoader object.
 
         Return:
-            A list of tensors to be used as input to a neural net.
+            A Tuple of tensors to be used as input to a neural net.
         """
         pass
 
     @abstractmethod
-    def get_y(self, ds: List[torch.Tensor]) -> List[torch.Tensor]:
+    def get_y(self, ds: Tuple[torch.Tensor, ...]) -> Tuple[torch.Tensor, ...]:
         """
         Get the values that are considered the y values. I.e. the dependent variable, I.e. the label
 
         Args:
-            ds: A list of tensors as read from a DataLoader object.
+            ds: A Tuple of tensors as read from a DataLoader object.
 
         Return:
-            A list of tensors to be use as label for the neural net.
+            A Tuple of tensors to be used as label for the neural net.
+        """
+        pass
+
+    def forward(self, x: Tuple[torch.Tensor, ...]) -> Tuple[torch.Tensor, ...]:
+        """
+        Forward method for the standard models. This is the logic of the forward pass through a Neural Net. It will
+        become the 'forward' of the torch 'nn.Module'.
+
+        Args:
+            x: The input to the nn.Module. A Tuple of torch tenors.
+
+        Returns:
+            Out put of the nn.Module as Tuple of tensors.
         """
         pass
 
@@ -68,11 +80,7 @@ class Model(nn.Module, ABC):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
     @abstractmethod
-    def optimizer(self, lr=None, wd=None) -> Optimizer:
-        pass
-
-    @abstractmethod
-    def history(self, *args) -> History:
+    def history(self, batch_size: int, sample_number: int, step_number: int) -> History:
         pass
 
     def extra_repr(self) -> str:
@@ -123,13 +131,10 @@ class ModelTensorDefinition(Model, ABC):
                  for i, td in enumerate(self._tensor_definition) if i in self._x_indexes]
         return nn.ModuleList(heads)
 
-    def get_x(self, ds: List[torch.Tensor]) -> List[torch.Tensor]:
-        ds = [ds[x] for x in self._x_indexes]
+    def get_x(self, ds: Tuple[torch.Tensor, ...]) -> Tuple[torch.Tensor, ...]:
         # A bit of logic to make sure that we always return tensors of the same rank. The batch dimension can get lost
         # if you select a single entry.
-        for i, (r, d) in enumerate(zip(self._x_ranks, ds)):
-            if len(d.shape) < r:
-                ds[i] = torch.unsqueeze(d, dim=0)
+        ds = tuple(ds[xi] for xi in self._x_indexes)
         return ds
 
     @staticmethod

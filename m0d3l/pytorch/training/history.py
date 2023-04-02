@@ -8,7 +8,7 @@ import torch
 import torch.utils.data as data
 
 from abc import ABC, abstractmethod
-from typing import Dict, List
+from typing import Dict, Tuple
 
 from ..common.exception import PyTorchTrainException
 
@@ -16,25 +16,15 @@ logger = logging.getLogger(__name__)
 
 
 class History(ABC):
-    """ Base Class for all history objects, this is where we track training statistics.
     """
-    def __init__(self, dl: data.DataLoader, history: Dict[str, List]):
-        self._batch_size = dl.batch_size
-        # noinspection PyTypeChecker
-        self._samples = len(dl.dataset)
+    Base Class for all history objects, this is where we track training statistics.
+    """
+    def __init__(self, batch_size: int, sample_number: int, step_number: int):
+        self._batch_size = batch_size
+        self._sample_number = sample_number
         self._step = 0
-        self._steps = len(dl)
+        self._step_number = step_number
         self._epoch = 0
-        self._history = history
-
-    def _val_argument(self, args) -> data.DataLoader:
-        if not isinstance(args[0], data.DataLoader):
-            raise PyTorchTrainException(
-                f'Argument during creation of {self.__class__.__name__} should have been a data loader. ' +
-                f'Was {type(args[0])}'
-            )
-        else:
-            return args[0]
 
     @staticmethod
     def _val_is_tensor(arg):
@@ -44,8 +34,8 @@ class History(ABC):
             )
 
     @staticmethod
-    def _val_is_tensor_list(arg):
-        if not isinstance(arg, List):
+    def _val_is_tensor_tuple(arg):
+        if not isinstance(arg, Tuple):
             raise PyTorchTrainException(
                 f'Expected this argument to be List. Got {type(arg)}'
             )
@@ -59,16 +49,17 @@ class History(ABC):
         return self._batch_size
 
     @property
-    def samples(self) -> int:
-        return self._samples
+    def number_of_samples(self) -> int:
+        return self._sample_number
 
     @property
-    def steps(self) -> int:
-        return self._steps
+    def number_of_steps(self) -> int:
+        return self._step_number
 
     @property
+    @abstractmethod
     def history(self) -> Dict:
-        return self._history
+        pass
 
     @property
     def epoch(self):
@@ -82,9 +73,10 @@ class History(ABC):
         self._step += 1
 
     @abstractmethod
-    def end_step(self, *args):
+    def end_step(self, y_prd: Tuple[torch.Tensor, ...], y: Tuple[torch.Tensor, ...], loss: torch.Tensor):
         pass
 
+    @abstractmethod
     def early_break(self) -> bool:
         pass
 

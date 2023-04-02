@@ -7,7 +7,7 @@ import torch
 import torch.utils.data as data
 
 from f3atur3s import TensorDefinition, LEARNING_CATEGORY_BINARY, LEARNING_CATEGORY_CATEGORICAL
-from f3atur3s import LEARNING_CATEGORY_CONTINUOUS
+from f3atur3s import LEARNING_CATEGORY_CONTINUOUS, LEARNING_CATEGORY_LABEL
 
 from eng1n3.pandas import TensorInstanceNumpy
 
@@ -19,7 +19,8 @@ from typing import List, Tuple
 DEFAULT_TYPES_PER_LEARNING_CATEGORY = {
     LEARNING_CATEGORY_CONTINUOUS: torch.float32,
     LEARNING_CATEGORY_BINARY: torch.float32,
-    LEARNING_CATEGORY_CATEGORICAL: torch.long
+    LEARNING_CATEGORY_CATEGORICAL: torch.long,
+    LEARNING_CATEGORY_LABEL: torch.float32
 }
 
 

@@ -4,12 +4,11 @@ Imports for Pytorch Loss functions
 """
 import torch
 import torch.nn as nn
+from abc import ABC, abstractmethod
 # noinspection PyProtectedMember
 from torch.nn.modules.loss import _Loss as TorchLoss
 
-from abc import ABC, abstractmethod
-
-from typing import Type, Any
+from typing import Type, Any, List, Tuple
 
 
 class Loss(ABC):
@@ -21,7 +20,7 @@ class Loss(ABC):
         self._aggregator = torch.sum if reduction == 'sum' else torch.mean
 
     @abstractmethod
-    def __call__(self, *args, **kwargs) -> torch.Tensor:
+    def __call__(self, y_prd: Tuple[torch.Tensor, ...], y: Tuple[torch.Tensor, ...]) -> torch.Tensor:
         pass
 
     def score(self, *args, **kwargs) -> torch.Tensor:
@@ -47,9 +46,9 @@ class SingleLabelBCELoss(Loss):
     def __init__(self, reduction='mean'):
         super(SingleLabelBCELoss, self).__init__(nn.BCELoss, reduction)
 
-    def __call__(self, *args, **kwargs) -> torch.Tensor:
-        pr = torch.squeeze(args[0])
-        lb = torch.squeeze(args[1][0])
+    def __call__(self, y_prd: Tuple[torch.Tensor, ...], y: Tuple[torch.Tensor, ...]) -> torch.Tensor:
+        pr = torch.squeeze(y_prd[0])
+        lb = torch.squeeze(y[0])
         loss = self.train_loss(pr, lb)
         return loss
 

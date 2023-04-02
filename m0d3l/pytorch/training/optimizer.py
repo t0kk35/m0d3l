@@ -47,3 +47,6 @@ class AdamWOptimizer(Optimizer):
     @property
     def lr(self) -> float:
         return self._opt.param_groups[0]['lr']
+
+    def __repr__(self):
+        return f'AdamW Optimizer with learning rate {self.lr}'

@@ -4,10 +4,6 @@ Module for common layers at the beginning of a NN
 """
 import torch
 import torch.nn as nn
-import torch.nn.functional as nnf
-from math import sqrt, log
-from collections import OrderedDict
-from typing import List, Tuple, Union
 
 from f3atur3s import TensorDefinition, FeatureCategorical, LEARNING_CATEGORY_BINARY, LEARNING_CATEGORY_CONTINUOUS
 from f3atur3s import LEARNING_CATEGORY_CATEGORICAL, LearningCategory
@@ -35,7 +31,7 @@ class Embedding(Layer):
         super(Embedding, self).__init__()
         self._i_features = [f for f in tensor_def.categorical_features() if isinstance(f, FeatureCategorical)]
         emb_dim = [(len(f)+1, min(max(int(len(f)*dim_ratio), min_dims), max_dims)) for f in self._i_features]
-        self._out_size = sum([y for _, y in emb_dim])
+        self._out_size = sum((y for _, y in emb_dim))
         self.embeddings = nn.ModuleList([nn.Embedding(x, y) for x, y in emb_dim])
         self.dropout = nn.Dropout(dropout)
 
@@ -46,9 +42,9 @@ class Embedding(Layer):
     def forward(self, x: torch.Tensor):
         rank = len(x.shape)
         if rank == 2:
-            return self.dropout(torch.cat([emb(x[:, i]) for i, emb in enumerate(self.embeddings)], dim=1))
+            return self.dropout(torch.cat(tuple(emb(x[:, i]) for i, emb in enumerate(self.embeddings)), dim=1))
         elif rank == 3:
-            return self.dropout(torch.cat([emb(x[:, :, i]) for i, emb in enumerate(self.embeddings)], dim=2))
+            return self.dropout(torch.cat(tuple(emb(x[:, :, i]) for i, emb in enumerate(self.embeddings)), dim=2))
         else:
             raise PyTorchLayerException(f'Don\'t know how to handle embedding with input tensor of rank {rank}')
 
@@ -110,8 +106,8 @@ class TensorDefinitionHead(Layer):
     def extra_repr(self) -> str:
         return f'Name={self.tensor_definition.name}, lc={self.learning_category.name}'
 
-    def forward(self, x):
-        # Run embedding for Categorical features, for others just forward.
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Run embedding for Categorical features, for others Learning categories just forward.
         if self._lc == LEARNING_CATEGORY_CATEGORICAL:
             return self.embedding(x)
         else:
