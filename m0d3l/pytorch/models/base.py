@@ -61,8 +61,13 @@ class Model(nn.Module, ABC):
             x: The input to the nn.Module. A Tuple of torch tenors.
 
         Returns:
-            Out put of the nn.Module as Tuple of tensors.
+            Output of the nn.Module as Tuple of tensors.
         """
+        pass
+
+    @property
+    @abstractmethod
+    def x_indexes(self) -> Tuple[int, ...]:
         pass
 
     @property
@@ -102,9 +107,20 @@ class ModelTensorDefinition(Model, ABC):
         Model.__init__(self)
         self._val_td_is_inference_ready(tensor_instance.target_tensor_def)
         self._tensor_definition: Tuple[TensorDefinition, ...] = tensor_instance.target_tensor_def
-        self._x_indexes = tuple([i for i, _ in enumerate(self._tensor_definition)
-                                 if i not in tensor_instance.label_indexes])
+        self._x_indexes = tuple(
+            [i for i, _ in enumerate(self._tensor_definition) if i not in tensor_instance.label_indexes]
+        )
         self._x_ranks = tuple([self._tensor_definition[i].rank for i in self._x_indexes])
+
+    @property
+    def tensor_definitions(self) -> Tuple[TensorDefinition, ...]:
+        """
+        Property that return the TensorDefinitions this model was built on.
+
+        Returns:
+            Tuple of TensorDefinitions that were used to construct the model.
+        """
+        return self._tensor_definition
 
     def create_heads(self, dim_ratio: float = 0.5, min_dims: int = 5,
                      max_dims: int = 50, dropout: float = 0.1) -> nn.ModuleList:
@@ -131,11 +147,32 @@ class ModelTensorDefinition(Model, ABC):
                  for i, td in enumerate(self._tensor_definition) if i in self._x_indexes]
         return nn.ModuleList(heads)
 
+    @property
+    def x_indexes(self) -> Tuple[int, ...]:
+        return self._x_indexes
+
     def get_x(self, ds: Tuple[torch.Tensor, ...]) -> Tuple[torch.Tensor, ...]:
         # A bit of logic to make sure that we always return tensors of the same rank. The batch dimension can get lost
         # if you select a single entry.
         ds = tuple(ds[xi] for xi in self._x_indexes)
         return ds
+
+    def forward_captum(*args):
+        """
+        A Specific forward function for Captum. Captum wants a tuple of tensors as input, and it unpacks them before
+        handing them to the forward of the model. That is not compatible with the standard Tuple[torch.Tensor, ...]
+        m0d3l uses. This function takes a variable number of torch.Tensor as input packs them and forwards to the
+        'self.forward'
+
+        Args:
+             A variable number of torch.Tensors.
+
+        Returns:
+             A single tensor. (Not a tuple like the standard forward).
+        """
+        self = args[0]
+        o = self.forward(tuple(a for a in args[1:]))
+        return o[0]
 
     @staticmethod
     def _val_td_is_inference_ready(tensor_definition: Tuple[TensorDefinition, ...]):

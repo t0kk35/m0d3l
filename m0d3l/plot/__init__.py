@@ -5,3 +5,4 @@ Standard imports for the m0d3l.plot module
 from .train import TrainPlot
 from .test import TestPlot
 from .embedding import EmbeddingPlot
+from .attribution import AttributionPlotBinary
