@@ -6,6 +6,7 @@ Module for classifier Models
 import logging
 import torch
 import torch.nn as nn
+from abc import ABC, abstractmethod
 
 from eng1n3.pandas import TensorInstanceNumpy
 
@@ -20,9 +21,9 @@ from typing import Dict, Tuple
 logger = logging.getLogger(__name__)
 
 
-class BinaryClassifier(ModelTensorDefinition):
+class BinaryClassifier(ModelTensorDefinition, ABC):
     def __init__(self, tensor_instance: TensorInstanceNumpy):
-        super(BinaryClassifier, self).__init__(tensor_instance)
+        ModelTensorDefinition.__init__(self, tensor_instance)
         self._y_index = self.get_label_index(tensor_instance)
 
     @staticmethod

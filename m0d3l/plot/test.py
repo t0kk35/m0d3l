@@ -4,7 +4,6 @@ Helper Class for Test plotting.
 """
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import style
 
 from sklearn.metrics import confusion_matrix, classification_report, roc_curve, roc_auc_score, average_precision_score
 from sklearn.metrics import precision_recall_curve
@@ -14,7 +13,6 @@ from ..common.testresults import TestResultsBinary
 from typing import Tuple
 
 class TestPlot:
-    def_style = 'ggplot'
 
     @classmethod
     def print_binary_classification_report(cls, results: TestResultsBinary, threshold=0.5):
@@ -60,7 +58,6 @@ class TestPlot:
 
     @classmethod
     def plot_roc_curve(cls, results: TestResultsBinary, fig_size: Tuple[float, float] = None):
-        style.use(TestPlot.def_style)
         predictions = results.y_prd[0]
         labels = results.y[0]
         fpr, tpr, thresholds = roc_curve(labels, predictions)
@@ -72,11 +69,11 @@ class TestPlot:
         plt.xlabel('False Positive Rate')
         plt.ylabel('True Positive Rate')
         plt.legend(loc=4)
+        plt.grid(color='0.95')
         plt.show()
 
     @classmethod
     def plot_precision_recall_curve(cls, results: TestResultsBinary, fig_size: Tuple[float, float] = None):
-        style.use(TestPlot.def_style)
         predictions = results.y_prd[0]
         labels = results.y[0]
         p, r, _ = precision_recall_curve(labels, predictions)
@@ -88,4 +85,5 @@ class TestPlot:
         plt.xlabel('Recall')
         plt.ylabel('Precision')
         plt.legend(loc=1)
+        plt.grid(color='0.95')
         plt.show()

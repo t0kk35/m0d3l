@@ -106,6 +106,7 @@ class ModelTensorDefinition(Model, ABC):
     def __init__(self, tensor_instance: TensorInstanceNumpy):
         Model.__init__(self)
         self._val_td_is_inference_ready(tensor_instance.target_tensor_def)
+        self._tensor_definition_heads = None
         self._tensor_definition: Tuple[TensorDefinition, ...] = tensor_instance.target_tensor_def
         self._x_indexes = tuple(
             [i for i, _ in enumerate(self._tensor_definition) if i not in tensor_instance.label_indexes]
@@ -145,7 +146,17 @@ class ModelTensorDefinition(Model, ABC):
         """
         heads = [TensorDefinitionHead(td, dim_ratio, min_dims, max_dims, dropout)
                  for i, td in enumerate(self._tensor_definition) if i in self._x_indexes]
+        self._tensor_definition_heads = tuple(heads)
         return nn.ModuleList(heads)
+
+    @property
+    def tensor_definition_heads(self) -> Tuple[TensorDefinitionHead, ...]:
+        if self._tensor_definition_heads is None:
+            raise PyTorchModelException(
+                f'Trying to access tensor heads before they are created. Please call method <create_heads> first'
+            )
+        else:
+            return self._tensor_definition_heads
 
     @property
     def x_indexes(self) -> Tuple[int, ...]:

@@ -84,6 +84,7 @@ class TensorDefinitionHead(Layer):
         self._p_tensor_def = tensor_def
         self._rank = tensor_def.rank
         self._lc = self._get_learning_category(tensor_def)
+        self._captum_mode = False
         if self._lc == LEARNING_CATEGORY_CATEGORICAL:
             self.embedding = Embedding(tensor_def, dim_ratio, emb_min_dim, emb_max_dim, emb_dropout)
             self._output_size = self.embedding.output_size
@@ -103,14 +104,27 @@ class TensorDefinitionHead(Layer):
     def learning_category(self) -> LearningCategory:
         return self._lc
 
+    @property
+    def captum_mode(self) -> bool:
+        return self._captum_mode
+
+    @captum_mode.setter
+    def captum_mode(self, flag: bool) -> None:
+        self._captum_mode = flag
+
     def extra_repr(self) -> str:
         return f'Name={self.tensor_definition.name}, lc={self.learning_category.name}'
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Run embedding for Categorical features, for others Learning categories just forward.
         if self._lc == LEARNING_CATEGORY_CATEGORICAL:
-            return self.embedding(x)
+            if not self._captum_mode:
+                # Run embedding for Categorical features
+                return self.embedding(x)
+            else:
+                # If in captum mode, then skip the embedding
+                return x
         else:
+            # For other Learning categories just forward.
             return x
 
     @staticmethod

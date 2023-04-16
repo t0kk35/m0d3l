@@ -3,20 +3,17 @@ Helper Class for Training plotting.
 (c) 2023 tsm
 """
 import matplotlib.pyplot as plt
-from matplotlib import style
 
 from ..pytorch.models.base import History
 
 from typing import Tuple
 
 class TrainPlot:
-    def_style = 'ggplot'
 
     @classmethod
     def plot_history(cls, history: Tuple[History, History], fig_size: Tuple[float, float] = None):
         train = history[0]
         val = history[1]
-        style.use(cls.def_style)
         _ = plt.figure(figsize=fig_size)
         plt.clf()
         plt.title('Training Metrics')
@@ -37,12 +34,13 @@ class TrainPlot:
                 ax.legend(loc=4)
             else:
                 ax.legend(loc=2)
+            ax.grid(color='0.95')
             axis.append(ax)
+
         plt.show()
 
     @classmethod
     def plot_lr(cls, history: History, fig_size: Tuple[float, float] = None):
-        style.use(cls.def_style)
         lr = history.history['lr']
         loss = history.history['loss']
         _ = plt.figure(figsize=fig_size)
@@ -52,4 +50,5 @@ class TrainPlot:
         plt.xlabel('Learning Rate (In log scale)')
         plt.xscale('log')
         plt.ylabel('Loss')
+        plt.grid(color='0.95')
         plt.show()
