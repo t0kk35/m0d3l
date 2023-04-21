@@ -10,9 +10,7 @@ import torch.nn as nn
 
 from typing import Any, Tuple
 
-from f3atur3s import TensorDefinition
-from eng1n3.pandas import TensorInstanceNumpy
-
+from ...common.modelconfig import ModelConfiguration
 from ..common.exception import PyTorchModelException
 from ..training.loss import Loss
 from ..training.history import History
@@ -103,31 +101,31 @@ class Model(nn.Module, ABC):
 
 
 class ModelTensorDefinition(Model, ABC):
-    def __init__(self, tensor_instance: TensorInstanceNumpy):
+    def __init__(self, model_configuration: ModelConfiguration):
         Model.__init__(self)
-        self._val_td_is_inference_ready(tensor_instance.target_tensor_def)
         self._tensor_definition_heads = None
-        self._tensor_definition: Tuple[TensorDefinition, ...] = tensor_instance.target_tensor_def
-        self._x_indexes = tuple(
-            [i for i, _ in enumerate(self._tensor_definition) if i not in tensor_instance.label_indexes]
-        )
-        self._x_ranks = tuple([self._tensor_definition[i].rank for i in self._x_indexes])
+        self._model_configuration = model_configuration
+        self._x_indexes = tuple([
+            i for i, _ in enumerate(model_configuration.tensor_configurations)
+            if i not in model_configuration.label_indexes
+        ])
+        self._x_ranks = tuple([self.model_configuration.tensor_configurations[i].rank for i in self._x_indexes])
 
     @property
-    def tensor_definitions(self) -> Tuple[TensorDefinition, ...]:
+    def model_configuration(self) -> ModelConfiguration:
         """
-        Property that return the TensorDefinitions this model was built on.
+        Property that return the ModelConfiguration this model was built on.
 
         Returns:
-            Tuple of TensorDefinitions that were used to construct the model.
+            Instance of ModelConfiguration
         """
-        return self._tensor_definition
+        return self._model_configuration
 
     def create_heads(self, dim_ratio: float = 0.5, min_dims: int = 5,
                      max_dims: int = 50, dropout: float = 0.1) -> nn.ModuleList:
         """
         Method from the ModelTensorDefinition class, it will create the heads based on the information provided in
-        the input 'TensorInstanceNumpy'.
+        the input 'ModelConfiguration'.
 
         Args:
             dim_ratio: This ratio defines the number of dimensions the embedding will have. The number of unique values
@@ -140,12 +138,11 @@ class ModelTensorDefinition(Model, ABC):
             dropout: The dropout factor to apply to the output of the embeddings.
 
         Returns:
-            An 'nn.ModuleList' containing a 'TensorDefinition' Layer for each of the TensorDefinitions found in the
-                'TensorInstance' used to create the model.
-
+            An 'nn.ModuleList' containing a 'TensorDefinition' Layer for each of the 'TensorConfiguration' found in the
+                'ModelConfiguration' used to create the model.
         """
-        heads = [TensorDefinitionHead(td, dim_ratio, min_dims, max_dims, dropout)
-                 for i, td in enumerate(self._tensor_definition) if i in self._x_indexes]
+        heads = [TensorDefinitionHead(tc, dim_ratio, min_dims, max_dims, dropout)
+                 for i, tc in enumerate(self.model_configuration.tensor_configurations) if i in self._x_indexes]
         self._tensor_definition_heads = tuple(heads)
         return nn.ModuleList(heads)
 
@@ -184,12 +181,3 @@ class ModelTensorDefinition(Model, ABC):
         self = args[0]
         o = self.forward(tuple(a for a in args[1:]))
         return o[0]
-
-    @staticmethod
-    def _val_td_is_inference_ready(tensor_definition: Tuple[TensorDefinition, ...]):
-        for td in tensor_definition:
-            if not td.inference_ready:
-                raise PyTorchModelException(
-                    f'Tensor Definition {td.name} is not read for inference. A Tensor Definition can be made ready ' +
-                    f'for inference by using an engine method with the "inference=False" set'
-                )

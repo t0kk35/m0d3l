@@ -8,6 +8,7 @@ import torch.nn as nn
 from f3atur3s import TensorDefinition, FeatureCategorical, LEARNING_CATEGORY_BINARY, LEARNING_CATEGORY_CONTINUOUS
 from f3atur3s import LEARNING_CATEGORY_CATEGORICAL, LearningCategory
 
+from ...common.modelconfig import TensorConfiguration
 from ..layers.base import Layer
 from ..common.exception import PyTorchLayerException
 
@@ -19,18 +20,21 @@ class Embedding(Layer):
     through a torch embedding layer, concatenate the output, apply dropout and return.
 
     Args:
-        tensor_def: A Tensor Definition describing the input. Each FeatureIndex in this definition will be turned
-            into an embedding layer
+        tensor_configuration: A TensorConfiguration describing the input. Each FeatureIndex in this definition will be
+            turned into an embedding layer
         dim_ratio: The ratio by which the size is multiplies to determine the embedding dimension.
         min_dims: The minimum dimension of an embedding.
         max_dims: The maximum dimension of an embedding.
         dropout: A float number that determines the dropout amount to apply. The dropout will be applied to the
             concatenated output layer
     """
-    def __init__(self, tensor_def: TensorDefinition, dim_ratio: float, min_dims: int, max_dims: int, dropout: float):
+    def __init__(self, tensor_configuration: TensorConfiguration, dim_ratio: float, min_dims: int,
+                 max_dims: int, dropout: float):
         super(Embedding, self).__init__()
-        self._i_features = [f for f in tensor_def.categorical_features() if isinstance(f, FeatureCategorical)]
-        emb_dim = [(len(f)+1, min(max(int(len(f)*dim_ratio), min_dims), max_dims)) for f in self._i_features]
+        self._i_features = tuple([n for n, _ in tensor_configuration.categorical_features])
+        emb_dim = [
+            (l+1, min(max(int(l*dim_ratio), min_dims), max_dims)) for _, l in tensor_configuration.categorical_features
+        ]
         self._out_size = sum((y for _, y in emb_dim))
         self.embeddings = nn.ModuleList([nn.Embedding(x, y) for x, y in emb_dim])
         self.dropout = nn.Dropout(dropout)
@@ -51,7 +55,7 @@ class Embedding(Layer):
     def embedding_weight(self, feature: FeatureCategorical) -> torch.Tensor:
         self._val_feature_is_categorical(feature)
         self._val_feature_in_embedding(feature)
-        i = self._i_features.index(feature)
+        i = self._i_features.index(feature.name)
         w = self.embeddings[i].weight
         return w
 
@@ -61,7 +65,7 @@ class Embedding(Layer):
                 f'Feature <{feature.name}> is not of type {FeatureCategorical.__class__}. Embedding only work with '
                 + f'Index Features'
             )
-        if feature not in self._i_features:
+        if feature.name not in self._i_features:
             raise PyTorchLayerException(
                 f'Feature <{feature.name}> is not known to this embedding layer. Please check the model was created ' +
                 f'with a Tensor Definition than contains this feature'
@@ -77,28 +81,25 @@ class Embedding(Layer):
 
 
 class TensorDefinitionHead(Layer):
-    def __init__(self, tensor_def: TensorDefinition, dim_ratio: float,
-                 emb_min_dim: int, emb_max_dim: int, emb_dropout: float):
-        TensorDefinitionHead._val_has_bin_or_con_or_cat_features(tensor_def)
+
+    def __init__(self, tensor_configuration: TensorConfiguration, dim_ratio: float, emb_min_dim: int,
+                 emb_max_dim: int, emb_dropout: float):
+        # TensorDefinitionHead._val_has_bin_or_con_or_cat_features(tensor_def)
         super(TensorDefinitionHead, self).__init__()
-        self._p_tensor_def = tensor_def
-        self._rank = tensor_def.rank
-        self._lc = self._get_learning_category(tensor_def)
+        self._tc_name = tensor_configuration.name
+        self._rank = tensor_configuration.rank
+        self._lc = self._get_learning_category(tensor_configuration)
         self._captum_mode = False
         if self._lc == LEARNING_CATEGORY_CATEGORICAL:
-            self.embedding = Embedding(tensor_def, dim_ratio, emb_min_dim, emb_max_dim, emb_dropout)
+            self.embedding = Embedding(tensor_configuration, dim_ratio, emb_min_dim, emb_max_dim, emb_dropout)
             self._output_size = self.embedding.output_size
         else:
             self.embedding = None
-            self._output_size = len(tensor_def.filter_features(self._lc, True))
+            self._output_size = sum(n for _, n in tensor_configuration.learning_categories)
 
     @property
     def output_size(self) -> int:
         return self._output_size
-
-    @property
-    def tensor_definition(self) -> TensorDefinition:
-        return self._p_tensor_def
 
     @property
     def learning_category(self) -> LearningCategory:
@@ -113,7 +114,7 @@ class TensorDefinitionHead(Layer):
         self._captum_mode = flag
 
     def extra_repr(self) -> str:
-        return f'Name={self.tensor_definition.name}, lc={self.learning_category.name}'
+        return f'Name={self._tc_name}, lc={self.learning_category.name}'
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self._lc == LEARNING_CATEGORY_CATEGORICAL:
@@ -153,23 +154,27 @@ class TensorDefinitionHead(Layer):
             )
 
     @staticmethod
-    def _get_learning_category(tensor_def: TensorDefinition) -> LearningCategory:
+    def _get_learning_category(tensor_configuration: TensorConfiguration) -> LearningCategory:
         """
         Small Helper Method to retrieve the learning category. We would expect to find only one per TensorDefinition
 
         Args:
-            tensor_def: The TensorDefinition object of which we are trying to establish the Learning category
+            tensor_configuration: The TensorConfiguration object of which we are trying to establish the Learning
+                category
 
         Return:
-            The learning category of the TensorDefinition
+            The learning category of the TensorConfiguration
 
         Raises:
-            PyTorchLayerException: if there was more than on Learning Category in the tensor_def input parameter.
+            PyTorchLayerException: if there was more than on Learning Category in the tensor_configuration input
+            parameter.
         """
-        if len(tensor_def.learning_categories) > 1:
+        lcs = tuple(set(lc for lc, _ in tensor_configuration.learning_categories))
+
+        if len(lcs) > 1:
             raise PyTorchLayerException(
                 f'Expecting only one LearningCategory per each TensorDefinition. ' +
-                f'Found {tensor_def.learning_categories} in TensorDefinition {tensor_def.name}'
+                f'Found {lcs} in TensorDefinition {tensor_configuration.name}'
             )
         else:
-            return tensor_def.learning_categories[0]
+            return tensor_configuration.learning_categories[0][0]

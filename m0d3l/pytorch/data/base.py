@@ -53,11 +53,6 @@ class ModelDataSet(ABC, data.Dataset):
         """
         pass
 
-    @property
-    @abstractmethod
-    def tensor_definitions(self) -> Tuple[TensorDefinition, ...]:
-        pass
-
     @staticmethod
     def get_dtypes(ti: TensorInstanceNumpy) -> Tuple[torch.dtype, ...]:
         dtypes = []

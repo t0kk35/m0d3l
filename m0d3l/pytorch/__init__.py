@@ -1,6 +1,7 @@
 """
 Standard import for the m0d3l.pytorch module
 """
+from ..common.modelconfig import TensorConfiguration, ModelConfiguration
 from .data.tensorinstancenumpy import TensorInstanceNumpyDataSet, TensorInstanceNumpyLabelSampler
 from .layers.linear import LinLayer
 from .models.classifiers import BinaryClassifier

@@ -4,6 +4,8 @@ Class that helps bridge a m0d3l and captum.
 import numpy as np
 import torch
 
+from f3atur3s import TensorDefinition
+
 from ..pytorch.models.base import ModelTensorDefinition
 from ..common.attributionsresults import AttributionResultBinary
 from captum.attr import configure_interpretable_embedding_layer, remove_interpretable_embedding_layer
@@ -12,7 +14,8 @@ from typing import Tuple, Type
 
 class CaptumAttributions:
     @classmethod
-    def get_attributions_binary(cls, model: ModelTensorDefinition, device: torch.device, captum_cls: Type,
+    def get_attributions_binary(cls, model: ModelTensorDefinition, tensor_definitions: Tuple[TensorDefinition],
+                                device: torch.device, captum_cls: Type,
                                 sample: Tuple[torch.Tensor]) -> AttributionResultBinary:
         inp = model.get_x(sample)
         # Get the classification result, we'll use this to assign the FP, TP, FN and TN labels.
@@ -31,7 +34,7 @@ class CaptumAttributions:
         # Re-order the input a bit, captum wants interpretable embeddings, not the original input for categorical.
         inp_w_emb = []
         i_emb = []
-        for i, (td, o_inp) in enumerate(zip(model.tensor_definitions, inp)):
+        for i, (td, o_inp) in enumerate(zip(tensor_definitions, inp)):
             if len(td.categorical_features()) > 0:
                 # All features should be categorical
                 emb = []
@@ -84,5 +87,5 @@ class CaptumAttributions:
 
         # Get the original input in as numpy
         orig_inp = tuple(s.cpu().detach().numpy() for s in sample)
-        tds = tuple(td for i, td in enumerate(model.tensor_definitions))
+        tds = tuple(tensor_definitions)
         return AttributionResultBinary(tds, orig_inp, model.x_indexes, model.label_index, class_res, attr)

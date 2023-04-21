@@ -5,7 +5,6 @@ Definitions of some common objects we will use
 import logging
 
 import torch
-import torch.utils.data as data
 
 from abc import ABC, abstractmethod
 from typing import Dict, Tuple
@@ -86,4 +85,13 @@ class History(ABC):
 
     @abstractmethod
     def end_epoch(self):
+        pass
+
+class TunableHistory(History, ABC):
+    """
+    Base Class for histories which we can use during tuning. They need to report loss.
+    """
+    @property
+    @abstractmethod
+    def tune_stats(self) -> Dict[str, float]:
         pass

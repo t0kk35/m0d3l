@@ -6,13 +6,12 @@ Module for classifier Models
 import logging
 import torch
 import torch.nn as nn
-from abc import ABC, abstractmethod
-
-from eng1n3.pandas import TensorInstanceNumpy
+from abc import ABC
 
 from .base import ModelTensorDefinition
 from ..common.exception import PyTorchModelException
-from ..training.history import History
+from ..training.history import TunableHistory
+from ...common.modelconfig import ModelConfiguration
 
 from ..training.loss import SingleLabelBCELoss, Loss
 
@@ -22,9 +21,9 @@ logger = logging.getLogger(__name__)
 
 
 class BinaryClassifier(ModelTensorDefinition, ABC):
-    def __init__(self, tensor_instance: TensorInstanceNumpy):
-        ModelTensorDefinition.__init__(self, tensor_instance)
-        self._y_index = self.get_label_index(tensor_instance)
+    def __init__(self, model_configuration: ModelConfiguration):
+        ModelTensorDefinition.__init__(self, model_configuration)
+        self._y_index = self.get_label_index(model_configuration)
 
     @staticmethod
     def create_tail() -> nn.Module:
@@ -41,18 +40,18 @@ class BinaryClassifier(ModelTensorDefinition, ABC):
     def loss_fn(self) -> Loss:
         return SingleLabelBCELoss()
 
-    def history(self, batch_size: int, sample_number: int, step_number: int) -> History:
+    def history(self, batch_size: int, sample_number: int, step_number: int) -> TunableHistory:
         return ClassifierHistory(batch_size, sample_number, step_number)
 
     @staticmethod
-    def get_label_index(ti: TensorInstanceNumpy) -> int:
-        if len(ti.label_indexes) > 1:
+    def get_label_index(model_configuration: ModelConfiguration) -> int:
+        if len(model_configuration.label_indexes) > 1:
             raise PyTorchModelException(
-                f'A Binary Classifier is designed to have one label only. Got {ti.label_indexes}'
+                f'A Binary Classifier is designed to have one label only. Got {model_configuration.label_indexes}'
             )
-        return ti.label_indexes[0]
+        return model_configuration.label_indexes[0]
 
-class ClassifierHistory(History):
+class ClassifierHistory(TunableHistory):
     loss_key = 'loss'
     acc_key = 'acc'
     auc_key = 'auc'
@@ -96,3 +95,7 @@ class ClassifierHistory(History):
             raise PyTorchModelException(
                 f'Incompatible shapes for prediction and label. Got {pr.shape} and {lb.shape}. Can not safely compare'
             )
+
+    @property
+    def tune_stats(self) -> Dict[str, float]:
+        return {self.loss_key: self._history[self.loss_key][-1]}

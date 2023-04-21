@@ -15,7 +15,7 @@ from .schedule import LRHistory, LinearLR
 from ..models.base import Model
 from ..common.exception import PyTorchTrainException
 # inspection PyProtectedMember
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ class Trainer:
             )
 
     @staticmethod
-    def _train_step(bar: tqdm, model: Model, device: torch.device, train_dl: data.DataLoader,
+    def _train_step(bar: Optional[tqdm], model: Model, device: torch.device, train_dl: data.DataLoader,
                     loss_fn: Loss, optimizer: Optimizer, history: History, step_scheduler: LRScheduler):
         model.train()
         for i, ds in enumerate(train_dl):
@@ -102,7 +102,7 @@ class Trainer:
                 break
 
     @staticmethod
-    def _validation_step(bar: tqdm, model: Model, device: torch.device, val_ds: data.DataLoader,
+    def _validation_step(bar: Optional[tqdm], model: Model, device: torch.device, val_ds: data.DataLoader,
                          loss_fn: Loss, history: History):
         with torch.no_grad():
             model.eval()
@@ -166,36 +166,6 @@ class Trainer:
              A tuple of 2 Objects of type LR_History. They contain the training statistics for the training and
                 validation steps respectively.
         """
-        return self._train(epochs, self.model.loss_fn, optimizer, scheduler)
-
-    def train_one_cycle(self, epochs: int, optimizer: Optimizer, pct_start: float = 0.3,
-                        div_factor: float = 25, final_div_factor: float = 1e4) -> Tuple[History, History]:
-        """
-        Train a model with the one cycle policy as explained by Leslie Smith; https://arxiv.org/pdf/1803.09820.pdf.
-        One cycle training normally has faster convergence. It basically first increases the learning rate to a
-        maximum specified rate and then gradually decreases it to a minimum.
-        Args:
-            epochs: Number of epoch to train for.
-            optimizer: An m0d3l Optimizer class to use during training.
-            pct_start: The percentage of the cycle during which the learning rate is increased. Default = 0.3
-            div_factor: Defines the initial learning rate as max_lr/div_factor. Default = 25
-            final_div_factor: Defined the final learning rate as initial_lr/final_div_factor. Default = 0.0001
-
-        Returns:
-             A tuple of 2 Objects of type LR_History. They contain the training statistics for the training and
-                validation steps respectively.
-        """
-        # noinspection PyUnresolvedReferences
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(
-            optimizer.optimizer,
-            max_lr=optimizer.lr,
-            steps_per_epoch=self._train_history.number_of_steps,
-            epochs=epochs,
-            div_factor=div_factor,
-            final_div_factor=final_div_factor,
-            pct_start=pct_start
-        )
-        # inspection PyUnresolvedReferences
         return self._train(epochs, self.model.loss_fn, optimizer, scheduler)
 
     def __repr__(self):

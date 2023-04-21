@@ -6,7 +6,6 @@ import logging
 import torch
 import torch.utils.data as data
 
-from f3atur3s import TensorDefinition
 from eng1n3.pandas import TensorInstanceNumpy
 
 from .base import ModelDataSet
@@ -18,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class TensorInstanceNumpyDataSet(ModelDataSet):
     def __init__(self, ti: TensorInstanceNumpy):
-        self._ti = ti
+        self._len = len(ti)
         self._dtypes = self.get_dtypes(ti)
         self._tensors = tuple(
             torch.as_tensor(array, dtype=dt) for array, dt in zip(ti.numpy_lists, self.get_dtypes(ti))
@@ -27,14 +26,10 @@ class TensorInstanceNumpyDataSet(ModelDataSet):
         self.device = torch.device('cpu')
 
     def __len__(self):
-        return len(self._ti)
+        return self._len
 
     def __getitem__(self, item: int) -> Tuple[torch.Tensor, ...]:
         return tuple(t[item] for t in self._tensors)
-
-    @property
-    def tensor_definitions(self) -> Tuple[TensorDefinition, ...]:
-        return self._ti.target_tensor_def
 
     @property
     def tensors(self) -> Tuple[torch.Tensor, ...]:
@@ -45,8 +40,7 @@ class TensorInstanceNumpyDataSet(ModelDataSet):
         # Cuda does not support multiple workers. Override if GPU
         if num_workers > 1:
             if self.device.type == 'cuda':
-                logger.warning(f'Defaulted to using the cpu for the data-loader of '
-                               f'<{[td.name for td in self.tensor_definitions]}>.' +
+                logger.warning(f'Defaulted to using the cpu for the data-loader ' +
                                f' Multiple workers not supported by "cuda" devices. ')
             self.device = torch.device('cpu')
             dl = data.DataLoader(
@@ -63,26 +57,23 @@ class TensorInstanceNumpyDataSet(ModelDataSet):
 class TensorInstanceNumpyLabelSampler:
     """
     Class for creating a sampler from a TensorInstanceNumpy
-
-    Args:
-         ti: The TensorInstanceNumpy object ot Sample.
     """
-    def __init__(self, ti: TensorInstanceNumpy):
-        self._ti = ti
 
-    def over_sampler(self, replacement=True) -> data.Sampler:
+    @classmethod
+    def over_sampler(cls, ti: TensorInstanceNumpy, replacement=True) -> data.Sampler:
         """
         Create a RandomWeightedSampler that balances out the classes. It'll more or less return an equal amount of
         each class. For a binary fraud label this would mean about as much fraud as non-fraud samples.
 
         Args:
+            ti: The TensorInstanceNumpy on which to create the sampler.
             replacement: Bool flag to trigger sample with replacement. With replacement a row can be drawn more
                 than once
 
         Returns:
             A Pytorch Sampler
         """
-        label_index = self._ti.label_indexes
+        label_index = ti.label_indexes
         if len(label_index) > 1:
             raise PyTorchTrainException(
                 f'The Class Sampler has only been implemented to have one label only. The TensorInstance had ' +
@@ -90,13 +81,13 @@ class TensorInstanceNumpyLabelSampler:
             )
         else:
             label_index = label_index[0]
-        _, class_balance = self._ti.unique(label_index)
+        _, class_balance = ti.unique(label_index)
         weights = 1./torch.tensor(class_balance, dtype=torch.float)
-        sample_weights = weights[torch.as_tensor(self._ti.numpy_lists[label_index].astype(int))]
+        sample_weights = weights[torch.as_tensor(ti.numpy_lists[label_index].astype(int))]
         sample_weights = torch.squeeze(sample_weights)
         train_sampler = torch.utils.data.sampler.WeightedRandomSampler(
             weights=sample_weights,
-            num_samples=len(self._ti),
+            num_samples=len(ti),
             replacement=replacement
         )
         return train_sampler
