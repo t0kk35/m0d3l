@@ -33,7 +33,7 @@ class Embedding(Layer):
         super(Embedding, self).__init__()
         self._i_features = tuple([n for n, _ in tensor_configuration.categorical_features])
         emb_dim = [
-            (l+1, min(max(int(l*dim_ratio), min_dims), max_dims)) for _, l in tensor_configuration.categorical_features
+            (l, min(max(int(l*dim_ratio), min_dims), max_dims)) for _, l in tensor_configuration.categorical_features
         ]
         self._out_size = sum((y for _, y in emb_dim))
         self.embeddings = nn.ModuleList([nn.Embedding(x, y) for x, y in emb_dim])

@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 
-from f3atur3s import FeatureIndex
+from f3atur3s import FeatureCategorical
 
 from ..common.exception import PlotException
 
@@ -21,7 +21,7 @@ class EmbeddingPlot:
             )
 
     @classmethod
-    def decompose_and_plot(cls, feature: FeatureIndex, embedding_weights: np.array, dims: int = 2,
+    def decompose_and_plot(cls, feature: FeatureCategorical, embedding_weights: np.array, dims: int = 2,
                            fig_size: Tuple[float, float] = None):
 
         p = PCA(n_components=dims)
@@ -33,7 +33,7 @@ class EmbeddingPlot:
             x, y = p_e[:, 0], p_e[:, 1]
             plt.scatter(x, y)
             # Annotate with Label
-            for lb, i in [('Unk', 0)] + sorted(list(feature.dictionary.items()), key=lambda it: it[1]):
+            for i, lb in sorted(list(feature.index_to_label.items()), key=lambda it: it[0]):
                 plt.annotate(lb, (x[i], y[i]))
             plt.xlabel('Component 1')
             plt.ylabel('Component 2')
@@ -43,7 +43,7 @@ class EmbeddingPlot:
             ax = plt.axes(projection='3d')
             ax.scatter3D(x, y, z)
             # Annotate with Label
-            for lb, i in [('Unk', 0)] + sorted(list(feature.dictionary.items()), key=lambda it: it[1]):
+            for i, lb in sorted(list(feature.index_to_label.items()), key=lambda it: it[0]):
                 ax.text(x[i], y[i], z[i], lb)
             ax.set_xlabel('Component 1')
             ax.set_ylabel('Component 2')

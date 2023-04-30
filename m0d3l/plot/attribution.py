@@ -5,13 +5,15 @@ Helper Class for captum plotting
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import operator
+from itertools import accumulate
 
 from ..common.attributionsresults import AttributionResultBinary
 from ..common.exception import PlotException
 
 from typing import Tuple
 
-from f3atur3s import FeatureExpander, Feature, TensorDefinition, FeatureIndex, FeatureHelper
+from f3atur3s import FeatureExpander, Feature, TensorDefinition, FeatureIndex, FeatureHelper, FeatureCategorical
 from f3atur3s import LEARNING_CATEGORY_CONTINUOUS, LEARNING_CATEGORY_BINARY, LEARNING_CATEGORY_CATEGORICAL
 
 class AttributionPlotBinary:
@@ -90,7 +92,7 @@ class AttributionPlotBinary:
         elif f.learning_category == LEARNING_CATEGORY_BINARY and isinstance(f, FeatureExpander):
             # A one-hot feature. Create a vertical bar chart. The current should be all one hot features
             oh_i = (0,) + tuple(len(f.expand_names) for f in data_td[td_i_a].features)
-            oh_i = (0,) + tuple(sr + st for sr, st in zip(oh_i, oh_i[1:]))
+            oh_i = tuple(accumulate(oh_i, operator.add))
             a = attributions.attributions[td_i_a]
             a = a[:, oh_i[f_i]:oh_i[f_i+1]]
             acl = attributions.classification_labels
@@ -107,22 +109,19 @@ class AttributionPlotBinary:
             plt.yticks([r + bw for r in range(len(f.expand_names))], [f.name for f in f.expand()])
             plt.legend()
             plt.grid(color='0.95')
-        elif f.learning_category == LEARNING_CATEGORY_CATEGORICAL:
+        elif f.learning_category == LEARNING_CATEGORY_CATEGORICAL and isinstance(f, FeatureCategorical):
             # Assume we have a TensorDefinition with all Categorical Features
             # We're going to create a DataFrame for this one, we'll need to group-by
             a = attributions.attributions[td_i_a][:, f_i]
             od = attributions.original_data[td_i_d][:, f_i]
             acl = attributions.classification_labels
             df = pd.DataFrame({'attr': a, 'ind': od, 'label': acl})
-            # TODO Need to fix this. This will not work for bin features.
-            df['v'] = df['ind'].map({v: k for k, v in f.dictionary.items()})
+            df['v'] = df['ind'].map(f.index_to_label)
             df = df.groupby(['v', 'label']).mean(numeric_only=True).unstack(fill_value=0).stack().reset_index()
             df = df.sort_values('v')
             uv = df['v'].unique().tolist()
-
             # Start building the bar-chart
             bw = 0.20
-            # TODO Need to fix this. This will not work for bin features.
             pos = np.arange(len(uv))
             for cl, c in cls.classification_colors:
                 at = df[df['label'] == cl]['attr']
