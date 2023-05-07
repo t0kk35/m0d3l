@@ -88,7 +88,7 @@ class TensorDefinitionHead(Layer):
         super(TensorDefinitionHead, self).__init__()
         self._tc_name = tensor_configuration.name
         self._rank = tensor_configuration.rank
-        self._lc = self._get_learning_category(tensor_configuration)
+        self._lc = tensor_configuration.unique_learning_category
         self._captum_mode = False
         if self._lc == LEARNING_CATEGORY_CATEGORICAL:
             self.embedding = Embedding(tensor_configuration, dim_ratio, emb_min_dim, emb_max_dim, emb_dropout)
@@ -152,29 +152,3 @@ class TensorDefinitionHead(Layer):
                 f'_StandardHead needs features of Learning category "Binary" or "Continuous" or "Categorical. '
                 f'Tensor definition <{tensor_def.name} has none of these.'
             )
-
-    @staticmethod
-    def _get_learning_category(tensor_configuration: TensorConfiguration) -> LearningCategory:
-        """
-        Small Helper Method to retrieve the learning category. We would expect to find only one per TensorDefinition
-
-        Args:
-            tensor_configuration: The TensorConfiguration object of which we are trying to establish the Learning
-                category
-
-        Return:
-            The learning category of the TensorConfiguration
-
-        Raises:
-            PyTorchLayerException: if there was more than on Learning Category in the tensor_configuration input
-            parameter.
-        """
-        lcs = tuple(set(lc for lc, _ in tensor_configuration.learning_categories))
-
-        if len(lcs) > 1:
-            raise PyTorchLayerException(
-                f'Expecting only one LearningCategory per each TensorDefinition. ' +
-                f'Found {lcs} in TensorDefinition {tensor_configuration.name}'
-            )
-        else:
-            return tensor_configuration.learning_categories[0][0]

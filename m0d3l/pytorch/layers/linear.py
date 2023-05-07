@@ -26,8 +26,11 @@ class LinLayer(Layer):
             applied
         bn_interval: Adds a BatchNorm layer every <bn_interval> layers. Default = 0. If set to 0 no BatchNorm layers
             will be added.
+        act_last: Flag that indicates if the last layer should be activated. If false then the sequence stops at a
+            linear layer, not at an activation layer.
     """
-    def __init__(self, input_size: int, layer_sizes: Tuple[int, ...], dropout: float = 0.0, bn_interval: int = 0):
+    def __init__(self, input_size: int, layer_sizes: Tuple[int, ...], dropout: float = 0.0, bn_interval: int = 0,
+                 act_last: bool = True):
         super(LinLayer, self).__init__()
         ls = OrderedDict()
         prev_size = input_size
@@ -35,9 +38,11 @@ class LinLayer(Layer):
             ls.update({f'lin_layer_{i+1:02d}': nn.Linear(prev_size, s)})
             if bn_interval != 0 and ((i+1) % bn_interval == 0):
                 ls.update({f'lin_bn_{i+1:02d}': nn.BatchNorm1d(s)})
-            ls.update({f'lin_act_{i + 1:02d}': nn.ReLU()})
-            if dropout != 0.0:
-                ls.update({f'lin_dropout_{i+1:02d}': nn.Dropout(dropout)})
+            # Check if last layer needs to be activated.
+            if act_last or i != len(layer_sizes)-1:
+                ls.update({f'lin_act_{i + 1:02d}': nn.ReLU()})
+                if dropout != 0.0:
+                    ls.update({f'lin_dropout_{i+1:02d}': nn.Dropout(dropout)})
             prev_size = s
         self.layers = nn.Sequential(ls)
         self._output_size = prev_size

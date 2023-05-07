@@ -7,18 +7,20 @@ So we're making a class that only contains 'native' objects like strings and int
 
 (c) 2023 TSM
 """
-
-from f3atur3s import LearningCategory, FeatureLabel, FeatureCategorical
+from f3atur3s import LearningCategory, FeatureLabel, FeatureCategorical, LEARNING_CATEGORY_BINARY
 from f3atur3s import TensorDefinition
+
+from .exception import ModelConfigException
 
 from typing import Tuple
 
 class TensorConfiguration:
     def __init__(self, name: str, learning_categories: Tuple[Tuple[LearningCategory, int], ...],
-                 categorical_features: Tuple[Tuple[str, int], ...], rank: int):
+                 categorical_features: Tuple[Tuple[str, int], ...], binary_features: Tuple[str,...], rank: int):
         self._name = name
         self._learning_categories = learning_categories
         self._categorical_features = categorical_features
+        self._binary_features = binary_features
         self._rank = rank
 
     @property
@@ -30,12 +32,38 @@ class TensorConfiguration:
         return self._categorical_features
 
     @property
+    def binary_features(self) -> Tuple[str, ...]:
+        return self._binary_features
+
+    @property
     def learning_categories(self) -> Tuple[Tuple[LearningCategory, int], ...]:
         return self._learning_categories
 
     @property
     def rank(self) -> int:
         return self._rank
+
+    @property
+    def unique_learning_category(self) -> LearningCategory:
+        """
+        Small Helper Method to retrieve the learning category. We would expect to find only one per TensorDefinition
+
+        Return:
+            The learning category of the TensorConfiguration
+
+        Raises:
+            PyTorchLayerException: if there was more than on Learning Category in the tensor_configuration input
+            parameter.
+        """
+        lcs = tuple(set(lc for lc, _ in self.learning_categories))
+
+        if len(lcs) > 1:
+            raise ModelConfigException(
+                f'Expecting only one LearningCategory per each TensorDefinition. ' +
+                f'Found {lcs} in TensorDefinition {self.name}'
+            )
+        else:
+            return self.learning_categories[0][0]
 
 class ModelConfiguration:
     def __init__(self, tensor_configuration: Tuple[TensorConfiguration, ...], label_indexes: Tuple[int, ...]):
@@ -50,6 +78,10 @@ class ModelConfiguration:
     def label_indexes(self) -> Tuple[int, ...]:
         return self._label_indexes
 
+    @property
+    def data_indexes(self) -> Tuple[int, ...]:
+        return tuple(i for i, _ in enumerate(self._tensor_configurations) if i not in self.label_indexes)
+
     @classmethod
     def from_tensor_definitions(cls, tensor_definitions: Tuple[TensorDefinition, ...]) -> 'ModelConfiguration':
         tcs = []
@@ -57,8 +89,9 @@ class ModelConfiguration:
             n = td.name
             lc = tuple([(lc, len(td.filter_features(lc, True))) for lc in td.learning_categories])
             r = td.rank
-            cf = tuple([(f.name, len(f)) for f in td.categorical_features() if isinstance(f, FeatureCategorical)])
-            tcs.append(TensorConfiguration(n, lc, cf, r))
+            cf = tuple((f.name, len(f)) for f in td.categorical_features() if isinstance(f, FeatureCategorical))
+            bf = tuple(f.name for f in td.binary_features(True))
+            tcs.append(TensorConfiguration(n, lc, cf, bf, r))
         li = ModelConfiguration._find_label_indexes(tensor_definitions)
         return ModelConfiguration(tuple(tcs), li)
 

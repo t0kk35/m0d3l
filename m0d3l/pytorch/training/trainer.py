@@ -64,13 +64,13 @@ class Trainer:
     def _val_is_tensor_tuple(arg):
         if not isinstance(arg, Tuple):
             raise PyTorchTrainException(
-                f'Expected this argument to be List. Got {type(arg)}. Please make sure that during the forward, the ' +
-                f'model returns a List of torch.Tensors. i.e. List[torch.Tensor]'
+                f'Expected this argument to be Tuple. Got {type(arg)}. Please make sure that during the forward, the ' +
+                f'model returns a Tuple of torch.Tensors. i.e. Tuple[torch.Tensor, ...]'
             )
         if not isinstance(arg[0], torch.Tensor):
             raise PyTorchTrainException(
-                f'Expected this arguments list to contain tensors. Got {type(arg[0])}. Please make sure that during ' +
-                f' the forward, the model returns a List of torch.Tensors. i.e. List[torch.Tensor]'
+                f'Expected this arguments tuple to contain tensors. Got {type(arg[0])}. Please make sure that during ' +
+                f' the forward, the model returns a List of torch.Tensors. i.e. Tuple[torch.Tensor, ...]'
             )
 
     @staticmethod
