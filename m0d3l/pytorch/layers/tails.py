@@ -20,7 +20,7 @@ class CategoricalLogSoftmax(Layer, ABC):
         self.input_rank = input_rank
         self.ein_sum_expression = es_expr
         self._i_features = tuple([n for n, _ in tensor_configuration.categorical_features])
-        self._sizes = tuple(len(f) + 1 for f in self._i_features)
+        self._sizes = tuple([c for _, c in tensor_configuration.categorical_features])
         self._hidden_dim = max(self._sizes)
         self._class_dim = len(self._sizes)
         self.lsm = nn.LogSoftmax(dim=self.input_rank-1)
@@ -57,12 +57,7 @@ class CategoricalLogSoftmax(Layer, ABC):
         bound = 1 / sqrt(fan_in)
         nn.init.uniform_(self.f_bias, -bound, bound)
 
-    def forward(self, x: Tuple[torch.Tensor, ...]):
-        # If we received multiple Tensors, there were multiple streams, which we will concatenate before applying linear
-        if len(x) > 1:
-            x = torch.cat(x, dim=1)
-        else:
-            x = x[0]
+    def forward(self, x: torch.Tensor):
         x = torch.einsum(self.ein_sum_expression, x, self.f_weight)
         x = x + self.f_bias
         if self.mask is not None:
@@ -73,16 +68,16 @@ class CategoricalLogSoftmax(Layer, ABC):
 class CategoricalLogSoftmax1d(CategoricalLogSoftmax):
     def __init__(self, tensor_configuration: TensorConfiguration, input_size: int, use_mask=False):
         super(CategoricalLogSoftmax1d, self).__init__(tensor_configuration, 2, 'bi,ilc->blc', use_mask)
-        self.f_weight = nn.parameter.Parameter(torch.zeros(input_size, self.hidden_dim, self.class_dim))
-        self.f_bias = nn.parameter.Parameter(torch.zeros(self.hidden_dim, self.class_dim))
-        mask = torch.zeros(self.hidden_dim, self.class_dim)
+        self.f_weight = nn.parameter.Parameter(torch.zeros(input_size, self.hidden_dim, self.output_size))
+        self.f_bias = nn.parameter.Parameter(torch.zeros(self.hidden_dim, self.output_size))
+        mask = torch.zeros(self.hidden_dim, self.output_size)
         for i, s in enumerate(self._sizes):
             mask[:s+1, i] = 1.0
         self.register_buffer('mask', mask if use_mask else None)
         self.reset_parameters()
 
     def extra_repr(self) -> str:
-        return f'max_dim={self.hidden_dim}, classes={self.class_dim}, use_mask={self.use_mask}'
+        return f'max_dim={self.hidden_dim}, classes={self.output_size}, use_mask={self.use_mask}'
 
 
 class CategoricalLogSoftmax2d(CategoricalLogSoftmax):
@@ -97,4 +92,4 @@ class CategoricalLogSoftmax2d(CategoricalLogSoftmax):
         self.reset_parameters()
 
     def extra_repr(self) -> str:
-        return f'max_dim={self.hidden_dim}, classes={self.class_dim}, use_mask={self.use_mask}'
+        return f'max_dim={self.hidden_dim}, classes={self.output_size}, use_mask={self.use_mask}'

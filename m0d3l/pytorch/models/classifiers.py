@@ -15,6 +15,7 @@ from ...common.modelconfig import ModelConfiguration
 
 from ..training.loss import SingleLabelBCELoss, Loss
 
+from collections import OrderedDict
 from typing import Dict, Tuple
 
 logger = logging.getLogger(__name__)
@@ -26,8 +27,11 @@ class BinaryClassifier(ModelTensorDefinition, ABC):
         self._y_index = self.get_label_index(model_configuration)
 
     @staticmethod
-    def create_tail() -> nn.Module:
-        return nn.Sigmoid()
+    def create_tail(input_size: int) -> nn.Module:
+        ls = OrderedDict()
+        ls.update({'tail_lin': nn.Linear(input_size, 1)})
+        ls.update({'tail_sig': nn.Sigmoid()})
+        return nn.Sequential(ls)
 
     def get_y(self, ds: Tuple[torch.Tensor, ...]) -> Tuple[torch.Tensor, ...]:
         return ds[self._y_index: self._y_index+1]

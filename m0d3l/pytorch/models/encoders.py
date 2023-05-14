@@ -15,7 +15,7 @@ from ..layers.autoencoders import LinearEncoder, LinearDecoder, LinearVAEEncoder
 from ..common.exception import PyTorchModelException
 from ..training.history import TunableHistory, History
 from ...common.modelconfig import ModelConfiguration, TensorConfiguration
-from ..training.loss import MultiLabelNLLLoss, SingleLabelBCELoss, SingleLabelVAELoss, Loss
+from ..training.loss import MultiLabelNLLLoss, SingleLabelBCELoss, SingleLabelVAELoss, MultiLabelVAELoss, Loss
 
 from typing import Tuple, Dict
 
@@ -68,10 +68,10 @@ class AutoEncoderBase(ModelTensorDefinition, ABC):
             return model_configuration.tensor_configurations[di[0]]
 
 class AutoEncoder(AutoEncoderBase, ABC):
-    def create_linear_encoder(self, layer_sizes: Tuple[int, ...], dropout: float = 0.0,
+    @staticmethod
+    def create_linear_encoder(input_size: int, layer_sizes: Tuple[int, ...], dropout: float = 0.0,
                               bn_interval: int = 0) -> nn.Module:
-        tc = AutoEncoder.get_tensor_definition(self.model_configuration)
-        return LinearEncoder(tc, layer_sizes, dropout, bn_interval)
+        return LinearEncoder(input_size, layer_sizes, dropout, bn_interval)
 
     def create_linear_decoder(self, layer_sizes: Tuple[int, ...], dropout: float = 0.0,
                               bn_interval: int = 0) -> nn.Module:
@@ -91,10 +91,10 @@ class AutoEncoder(AutoEncoderBase, ABC):
 
 class VariationalAutoEncoder(AutoEncoderBase, ABC):
 
-    def create_linear_encoder(self, layer_sizes: Tuple[int, ...], dropout: float = 0.0,
+    @staticmethod
+    def create_linear_encoder(input_size: int, layer_sizes: Tuple[int, ...], dropout: float = 0.0,
                               bn_interval: int = 0) -> nn.Module:
-        tc = AutoEncoder.get_tensor_definition(self.model_configuration)
-        return LinearVAEEncoder(tc, layer_sizes, dropout, bn_interval)
+        return LinearVAEEncoder(input_size, layer_sizes, dropout, bn_interval)
 
     def create_linear_decoder(self, layer_sizes: Tuple[int, ...], dropout: float = 0.0,
                               bn_interval: int = 0) -> nn.Module:
@@ -106,7 +106,7 @@ class VariationalAutoEncoder(AutoEncoderBase, ABC):
         if self.learning_category == LEARNING_CATEGORY_BINARY:
             return SingleLabelVAELoss()
         elif self.learning_category == LEARNING_CATEGORY_CATEGORICAL:
-            return MultiLabelNLLLoss()
+            return MultiLabelVAELoss()
         else:
             raise PyTorchModelException(
                 f'Can not determine what the loss should be for LC {self.learning_category}'
