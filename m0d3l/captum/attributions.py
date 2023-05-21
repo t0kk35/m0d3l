@@ -75,7 +75,7 @@ class CaptumAttributions:
                 emb_a = torch.cat(emb_a, dim=1)
                 attr_new.append(emb_a)
 
-        attr = tuple(a.cpu().detach().numpy() for a in attr_new)
+        attr_new = tuple(a.cpu().detach().numpy() for a in attr_new)
 
         # Remove interpretable embeddings
         for iel in i_emb:
@@ -88,4 +88,7 @@ class CaptumAttributions:
         # Get the original input in as numpy
         orig_inp = tuple(s.cpu().detach().numpy() for s in sample)
         tds = tuple(tensor_definitions)
-        return AttributionResultBinary(tds, orig_inp, model.x_indexes, model.label_index, class_res, attr)
+        # Remove attr and release GPU Memory
+        del attr
+        torch.cuda.empty_cache()
+        return AttributionResultBinary(tds, orig_inp, model.x_indexes, model.label_index, class_res, attr_new)
