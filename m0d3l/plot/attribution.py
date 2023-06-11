@@ -118,7 +118,8 @@ class AttributionPlotBinary:
             df = pd.DataFrame({'attr': a, 'ind': od, 'label': acl})
             df['v'] = df['ind'].map(f.index_to_label)
             df = df.groupby(['v', 'label']).mean(numeric_only=True).unstack(fill_value=0).stack().reset_index()
-            df = df.sort_values('v')
+            # Little trick for Bin features we can not mix a sort of text with numbers, so must exclude the '*_UNK_*'
+            df = pd.concat([df[df['v'] != '*_UNK_*'].sort_values('v'), df[df['v'] == '*_UNK_*']])
             uv = df['v'].unique().tolist()
             # Start building the bar-chart
             bw = 0.20

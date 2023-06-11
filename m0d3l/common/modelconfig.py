@@ -86,11 +86,17 @@ class ModelConfiguration:
     def from_tensor_definitions(cls, tensor_definitions: Tuple[TensorDefinition, ...]) -> 'ModelConfiguration':
         tcs = []
         for td in tensor_definitions:
-            n = td.name
-            lc = tuple([(lc, len(td.filter_features(lc, True))) for lc in td.learning_categories])
-            r = td.rank
-            cf = tuple((f.name, len(f)) for f in td.categorical_features() if isinstance(f, FeatureCategorical))
-            bf = tuple(f.name for f in td.binary_features(True))
+            if td.is_series_based:
+                td_i = TensorDefinition('SeriesTD', td.series_feature.series_features)
+                # This is a bit of a hack.
+                r = 3
+            else:
+                td_i = td
+                r = td_i.rank
+            n = td_i.name
+            lc = tuple([(lc, len(td_i.filter_features(lc, True))) for lc in td_i.learning_categories])
+            cf = tuple((f.name, len(f)) for f in td_i.categorical_features() if isinstance(f, FeatureCategorical))
+            bf = tuple(f.name for f in td_i.binary_features(True))
             tcs.append(TensorConfiguration(n, lc, cf, bf, r))
         li = ModelConfiguration._find_label_indexes(tensor_definitions)
         return ModelConfiguration(tuple(tcs), li)

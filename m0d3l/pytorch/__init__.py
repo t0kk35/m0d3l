@@ -8,4 +8,4 @@ from .models.classifiers import BinaryClassifier
 from .models.encoders import AutoEncoder, VariationalAutoEncoder
 from .training.trainer import Trainer
 from .training.tester import Tester
-from .training.optimizer import AdamWOptimizer
+from .training.optimizer import AdamWOptimizer, AdamOptimizer, SGDOptimizer
