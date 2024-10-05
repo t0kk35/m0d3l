@@ -70,10 +70,10 @@ class TensorInstanceNumpyLabelSampler:
             ti: The TensorInstanceNumpy on which to create the sampler.
             replacement: Bool flag to trigger sample with replacement. With replacement a row can be drawn more
                 than once
-            target_balance: Tuple of floats listing the target balance. Can be used to override the standard equal
-                target balance. For instance (.4,.6) will have approx. 40% of class 0 and 60% of class 1. The sum of
-                balances should be 1.0 and there should be the same number of balances as there are actual classes in
-                the label.
+            target_balance: Tuple of floats listing the target balance for each class. Can be used to override the
+                standard equal target balance. For instance (.4,.6) will have approx. 40% of class 0 and 60% of class 1.
+                The sum of balances should be 1.0 and there should be the same number of balances as there are actual
+                classes in the label.
 
         Returns:
             A Pytorch Sampler
